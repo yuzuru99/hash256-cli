@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node miner.js",
     "multi": "node miner-multi.js",
-    "smart": "node smart-miner.js",
     "check": "node check-state.js"
   },
   "keywords": [
