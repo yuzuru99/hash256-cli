@@ -76,9 +76,11 @@ if (!isMainThread) {
       console.log("Challenge:", challenge);
       console.log("Mining with", NUM_WORKERS, "threads...");
 
+      const startTime = Date.now();
       const nonce = await findNonce(challenge, difficulty.toString());
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-      console.log("FOUND nonce:", nonce.nonce);
+      console.log(`FOUND nonce: ${nonce.nonce} (${elapsed}s)`);
       console.log("Hash:", nonce.hash);
 
       try {
