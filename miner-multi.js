@@ -19,6 +19,8 @@ if (!isMainThread) {
   const { challenge, difficulty, startNonce } = workerData;
   const diffBig = BigInt(difficulty);
   let nonce = BigInt(startNonce);
+  let count = 0;
+  let lastReport = Date.now();
 
   while (true) {
     const hash = ethers.solidityPackedKeccak256(
@@ -30,6 +32,15 @@ if (!isMainThread) {
       break;
     }
     nonce++;
+    count++;
+
+    if (count % 50000 === 0) {
+      const now = Date.now();
+      const elapsed = (now - lastReport) / 1000;
+      parentPort.postMessage({ hashrate: Math.round(50000 / elapsed) });
+      lastReport = now;
+      count = 0;
+    }
   }
 } else {
   // === MAIN THREAD ===
@@ -75,6 +86,12 @@ if (!isMainThread) {
     return new Promise((resolve) => {
       const workers = [];
       let resolved = false;
+      const rates = new Array(NUM_WORKERS).fill(0);
+
+      const rateInterval = setInterval(() => {
+        const total = rates.reduce((a, b) => a + b, 0);
+        process.stdout.write(`\r⛏️  Hashrate: ${(total / 1000).toFixed(1)} KH/s (${NUM_WORKERS} threads)   `);
+      }, 2000);
 
       for (let i = 0; i < NUM_WORKERS; i++) {
         const startNonce = (BigInt(Math.floor(Math.random() * 1e15)) + BigInt(i) * BigInt(1e15)).toString();
@@ -85,8 +102,12 @@ if (!isMainThread) {
         w.on("message", (msg) => {
           if (msg.found && !resolved) {
             resolved = true;
+            clearInterval(rateInterval);
+            console.log("");
             resolve(msg);
             workers.forEach((wk) => wk.terminate());
+          } else if (msg.hashrate) {
+            rates[i] = msg.hashrate;
           }
         });
 
