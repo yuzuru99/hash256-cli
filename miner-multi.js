@@ -56,6 +56,7 @@ if (!isMainThread) {
 
     console.log("Wallet:", wallet.address);
     console.log("Workers:", NUM_WORKERS);
+    console.log("CPU Cores:", os.cpus().length);
 
     while (true) {
       const state = await contract.miningState();
@@ -90,7 +91,7 @@ if (!isMainThread) {
 
       const rateInterval = setInterval(() => {
         const total = rates.reduce((a, b) => a + b, 0);
-        process.stdout.write(`\r⛏️  Hashrate: ${(total / 1000).toFixed(1)} KH/s (${NUM_WORKERS} threads)   `);
+        process.stdout.write(`\r⛏️  Hashrate: ${(total / 1000).toFixed(1)} KH/s | Workers: ${NUM_WORKERS}/${os.cpus().length} cores   `);
       }, 2000);
 
       for (let i = 0; i < NUM_WORKERS; i++) {
