@@ -15,29 +15,38 @@ const ABI = [
 ];
 
 if (!isMainThread) {
-  // === WORKER: brute-force nonce ===
+  // === WORKER: brute-force nonce using native keccak256 ===
+  const keccak256 = require("keccak");
   const { challenge, difficulty, startNonce } = workerData;
   const diffBig = BigInt(difficulty);
   let nonce = BigInt(startNonce);
   let count = 0;
   let lastReport = Date.now();
 
+  // Pre-compute challenge bytes (32 bytes)
+  const challengeBytes = Buffer.from(challenge.slice(2), "hex");
+
   while (true) {
-    const hash = ethers.solidityPackedKeccak256(
-      ["bytes32", "uint256"],
-      [challenge, nonce]
-    );
-    if (BigInt(hash) < diffBig) {
-      parentPort.postMessage({ found: true, nonce: nonce.toString(), hash });
+    // Encode nonce as uint256 (32 bytes big-endian)
+    const nonceHex = nonce.toString(16).padStart(64, "0");
+    const nonceBytes = Buffer.from(nonceHex, "hex");
+
+    // keccak256(abi.encodePacked(bytes32, uint256))
+    const input = Buffer.concat([challengeBytes, nonceBytes]);
+    const hash = keccak256("keccak256").update(input).digest();
+    const hashBig = BigInt("0x" + hash.toString("hex"));
+
+    if (hashBig < diffBig) {
+      parentPort.postMessage({ found: true, nonce: nonce.toString(), hash: "0x" + hash.toString("hex") });
       break;
     }
     nonce++;
     count++;
 
-    if (count % 50000 === 0) {
+    if (count % 100000 === 0) {
       const now = Date.now();
       const elapsed = (now - lastReport) / 1000;
-      parentPort.postMessage({ hashrate: Math.round(50000 / elapsed) });
+      parentPort.postMessage({ hashrate: Math.round(100000 / elapsed) });
       lastReport = now;
       count = 0;
     }
