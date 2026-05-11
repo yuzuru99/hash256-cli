@@ -63,19 +63,20 @@ if (!isMainThread) {
     const hash = keccak256("keccak256").update(input).digest();
 
     if (hashLessThanDiff(hash)) {
-      parentPort.postMessage({ found: true, nonce: nonce.toString(), hash: "0x" + hash.toString("hex") });
+      const finalNonce = nonce + BigInt(count);
+      parentPort.postMessage({ found: true, nonce: finalNonce.toString(), hash: "0x" + hash.toString("hex") });
       break;
     }
-    nonce++;
     incrementNonce();
     count++;
 
-    if (count % 100000 === 0) {
+    if (count % 500000 === 0) {
       const now = Date.now();
       const elapsed = (now - lastReport) / 1000;
-      parentPort.postMessage({ hashrate: Math.round(100000 / elapsed) });
+      parentPort.postMessage({ hashrate: Math.round(500000 / elapsed) });
       lastReport = now;
       count = 0;
+      nonce += 500000n;
     }
   }
 } else {
