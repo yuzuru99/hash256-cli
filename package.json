@@ -5,6 +5,7 @@
   "main": "miner.js",
   "scripts": {
     "start": "node miner.js",
+    "smart": "node smart-miner.js",
     "check": "node check-state.js"
   },
   "keywords": [
