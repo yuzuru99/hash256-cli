@@ -76,6 +76,13 @@ if (!isMainThread) {
       console.log("Challenge:", challenge);
       console.log("Mining with", NUM_WORKERS, "threads...");
 
+      // Estimate time (will update after first hashrate report)
+      const maxHash = 2n ** 256n;
+      const prob = Number(difficulty) / Number(maxHash);
+      const estHashrate = NUM_WORKERS * 80000; // rough estimate per worker
+      const estHours = (1 / (prob * estHashrate) / 3600).toFixed(2);
+      console.log(`Estimated time: ~${estHours} hours (will refine with actual hashrate)`);
+
       const startTime = Date.now();
       const nonce = await findNonce(challenge, difficulty.toString());
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -102,7 +109,10 @@ if (!isMainThread) {
 
       const rateInterval = setInterval(() => {
         const total = rates.reduce((a, b) => a + b, 0);
-        process.stdout.write(`\r⛏️  Hashrate: ${(total / 1000).toFixed(1)} KH/s | Workers: ${NUM_WORKERS}/${os.cpus().length} cores   `);
+        const maxHash = 2n ** 256n;
+        const prob = Number(BigInt(difficulty)) / Number(maxHash);
+        const eta = total > 0 ? (1 / (prob * total) / 3600).toFixed(1) : "?";
+        process.stdout.write(`\r⛏️  Hashrate: ${(total / 1000).toFixed(1)} KH/s | Workers: ${NUM_WORKERS}/${os.cpus().length} cores | ETA: ~${eta}h   `);
       }, 2000);
 
       for (let i = 0; i < NUM_WORKERS; i++) {
