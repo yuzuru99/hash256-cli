@@ -18,29 +18,56 @@ if (!isMainThread) {
   // === WORKER: brute-force nonce using native keccak256 ===
   const keccak256 = require("keccak");
   const { challenge, difficulty, startNonce } = workerData;
-  const diffBig = BigInt(difficulty);
   let nonce = BigInt(startNonce);
   let count = 0;
   let lastReport = Date.now();
 
-  // Pre-compute challenge bytes (32 bytes)
-  const challengeBytes = Buffer.from(challenge.slice(2), "hex");
+  // Pre-compute difficulty as 32-byte big-endian buffer for fast comparison
+  const diffHex = BigInt(difficulty).toString(16).padStart(64, "0");
+  const diffBytes = Buffer.from(diffHex, "hex");
+
+  // Pre-allocate fixed buffer: 32 bytes challenge + 32 bytes nonce
+  const input = Buffer.alloc(64);
+  Buffer.from(challenge.slice(2), "hex").copy(input, 0);
+
+  // Write nonce as big-endian uint256 into input[32..63]
+  function writeNonce(n) {
+    let val = n;
+    for (let i = 63; i >= 32; i--) {
+      input[i] = Number(val & 0xffn);
+      val >>= 8n;
+    }
+  }
+
+  // Compare hash < difficulty using buffer bytes (big-endian)
+  function hashLessThanDiff(hash) {
+    for (let i = 0; i < 32; i++) {
+      if (hash[i] < diffBytes[i]) return true;
+      if (hash[i] > diffBytes[i]) return false;
+    }
+    return false;
+  }
+
+  // Increment nonce directly in buffer (big-endian)
+  function incrementNonce() {
+    for (let i = 63; i >= 32; i--) {
+      input[i]++;
+      if (input[i] !== 0) break;
+    }
+  }
+
+  // Write initial nonce
+  writeNonce(nonce);
 
   while (true) {
-    // Encode nonce as uint256 (32 bytes big-endian)
-    const nonceHex = nonce.toString(16).padStart(64, "0");
-    const nonceBytes = Buffer.from(nonceHex, "hex");
-
-    // keccak256(abi.encodePacked(bytes32, uint256))
-    const input = Buffer.concat([challengeBytes, nonceBytes]);
     const hash = keccak256("keccak256").update(input).digest();
-    const hashBig = BigInt("0x" + hash.toString("hex"));
 
-    if (hashBig < diffBig) {
+    if (hashLessThanDiff(hash)) {
       parentPort.postMessage({ found: true, nonce: nonce.toString(), hash: "0x" + hash.toString("hex") });
       break;
     }
     nonce++;
+    incrementNonce();
     count++;
 
     if (count % 100000 === 0) {
