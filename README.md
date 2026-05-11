@@ -57,7 +57,7 @@ npm -v
 ## Setup Project
 
 ```bash
-git clone https://github.com/mrfunntastiic/hash256-cli
+git clone https://github.com/yuzuru99/hash256-cli
 cd hash256-cli
 
 npm install
